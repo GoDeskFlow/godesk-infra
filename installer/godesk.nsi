@@ -76,16 +76,25 @@ Section "${APP_NAME}" SecMain
   SectionIn RO
   SetOutPath "$INSTDIR"
 
+  ; UPGRADE-RACE GUARD: a previous install may have left a stale godesk.exe
+  ; in INSTDIR. Without this, the post-File Rename below would fail silently
+  ; against the existing destination, leaving the OLD godesk.exe in place
+  ; and the new flutter_godesk.exe sitting unused. v0.1.2 → v0.1.3 hit this
+  ; on a real user machine — silent-launch bug fix shipped but the user
+  ; kept executing the old pre-fix binary.
+  Delete "$INSTDIR\${APP_EXE}"
+  Delete "$INSTDIR\flutter_godesk.exe"
+
   ; Copy entire flutter build output. The Flutter build emits the EXE plus
   ; required runtime DLLs and the data/ directory; we ship them all.
   File /r "..\..\client\flutter_godesk\build\windows\x64\runner\Release\*"
 
   ; Rename the binary the build emits (flutter_godesk.exe) to godesk.exe.
-  ; (Flutter's `--release` keeps the project name; the rename happens at
-  ; install time so the installed app is consistent with the rebrand.)
-  IfFileExists "$INSTDIR\flutter_godesk.exe" 0 +3
+  ; Now safe — destination was deleted above.
+  IfFileExists "$INSTDIR\flutter_godesk.exe" rename_ok rename_skip
+  rename_ok:
     Rename "$INSTDIR\flutter_godesk.exe" "$INSTDIR\${APP_EXE}"
-    ; If a stale godesk.exe exists, the rename will fail silently — accept it.
+  rename_skip:
 
   ; Start menu + desktop shortcuts
   CreateDirectory "$SMPROGRAMS\${APP_NAME}"
