@@ -1,0 +1,6 @@
+# Keypair MUST stay out of the repo. The pubkey gets baked into client
+# builds; the secret stays offline / on the production host only.
+key/
+*.keypair
+*.priv
+*.secret

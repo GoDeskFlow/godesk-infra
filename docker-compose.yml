@@ -1,0 +1,62 @@
+# GoDesk infra — co-located on godeskflow.com VPS during MVP per ADR-005.
+# Splits hbbr to dedicated VPS before public launch (Phase 4 trigger).
+#
+# Usage:
+#   docker compose up -d
+#   docker compose logs -f hbbs hbbr
+#   docker compose pull && docker compose up -d   # update
+#
+# Generated key:
+#   docker compose run --rm hbbs rustdesk-utils genkeypair
+#   (save output as godesk-keypair.txt offline; pubkey baked into client builds)
+
+services:
+  hbbs:
+    # Pin upstream rustdesk-server image until we publish godesk-server
+    image: rustdesk/rustdesk-server:latest
+    container_name: godesk-hbbs
+    restart: unless-stopped
+    command: >
+      hbbs
+      -r relay.godeskflow.com:21117
+      -k 2Db7cpnlMVASoi29tZ3oGpt+bvyGlhl14ZxqxLURFO8=
+    ports:
+      - "21115:21115/tcp"   # ID/rendezvous TCP
+      - "21116:21116/tcp"   # NAT TCP test
+      - "21116:21116/udp"   # NAT UDP test
+      - "21118:21118/tcp"   # WebSocket (optional, for web client later)
+    volumes:
+      - hbbs-data:/root
+    mem_limit: 512m
+    cpus: 0.5
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  hbbr:
+    image: rustdesk/rustdesk-server:latest
+    container_name: godesk-hbbr
+    restart: unless-stopped
+    command: >
+      hbbr
+      -k 2Db7cpnlMVASoi29tZ3oGpt+bvyGlhl14ZxqxLURFO8=
+    ports:
+      - "21117:21117/tcp"   # Relay TCP
+      - "21119:21119/tcp"   # Relay WebSocket (optional)
+    volumes:
+      - hbbr-data:/root
+    mem_limit: 1g
+    cpus: 1.0
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+volumes:
+  hbbs-data:
+    name: godesk-hbbs-data
+  hbbr-data:
+    name: godesk-hbbr-data
