@@ -76,6 +76,19 @@ Section "${APP_NAME}" SecMain
   SectionIn RO
   SetOutPath "$INSTDIR"
 
+  ; PROCESS-LOCK GUARD: the previous version may still be running (real quit
+  ; was unimplemented before v0.1.10 — X hid to tray and left the process
+  ; resident, holding a lock on flutter_windows.dll). Without this kill
+  ; step, `File /r` would fail with "Error opening file for writing" and
+  ; even the Abort button on the resulting dialog couldn't escape the
+  ; stuck state. taskkill is built into Windows — no plug-in dependency.
+  ; /F = force, /T = also kill child processes, /IM = image name.
+  ; Errors swallowed: if no process matches, taskkill returns 128 — fine.
+  nsExec::Exec 'taskkill /F /T /IM ${APP_EXE}'
+  nsExec::Exec 'taskkill /F /T /IM flutter_godesk.exe'
+  ; Brief pause so Windows releases the file handles before we touch them.
+  Sleep 800
+
   ; UPGRADE-RACE GUARD: a previous install may have left a stale godesk.exe
   ; in INSTDIR. Without this, the post-File Rename below would fail silently
   ; against the existing destination, leaving the OLD godesk.exe in place
